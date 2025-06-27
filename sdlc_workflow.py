@@ -27,10 +27,8 @@ class SDLCWorkflow:
 
         self.github_data = GitHubData(
             repo_link="",
-            branch="",
-            link="",
             pr_link="",
-            pr_approver=""
+            pr_creator=""
         )  # Store GitHub repository information
 
     @workflow.run
@@ -42,31 +40,55 @@ class SDLCWorkflow:
         await workflow.execute_activity(create_github_branch, feature_details, start_to_close_timeout=timedelta(seconds=30))
 
         # Wait for a signal to create the PR
+        await workflow.wait_condition(
+            lambda: self.github_data.pr_creator != "",
+            timeout=timedelta(days=5),
+        )
         await workflow.execute_activity(create_github_pr, feature_details, start_to_close_timeout=timedelta(seconds=30))
 
         # Wait for approval to deploy to Test
+        await workflow.wait_condition(
+            lambda: any(env.status == "approved" for env in self.deployment_environments if env.name == "test"),
+            timeout=timedelta(days=5),
+        )
         await workflow.execute_activity(deploy_to_test_env, feature_details, start_to_close_timeout=timedelta(seconds=30))
+
         # Wait for approval to deploy to Preprod
+        await workflow.wait_condition(
+            lambda: any(env.status == "approved" for env in self.deployment_environments if env.name == "preprod"),
+            timeout=timedelta(days=5),
+        )
         await workflow.execute_activity(deploy_to_preprod_env, feature_details, start_to_close_timeout=timedelta(seconds=30))
+
         # Wait for approval to deploy to Prod
+        await workflow.wait_condition(
+            lambda: any(env.status == "approved" for env in self.deployment_environments if env.name == "prod"),
+            timeout=timedelta(days=5),
+        )
         await workflow.execute_activity(deploy_to_prod_env, feature_details, start_to_close_timeout=timedelta(seconds=30))
 
     @workflow.signal
     async def create_PR(self, approver: str):
         """Signal to receive a prompt from the user."""
         workflow.logger.warning(f"Got signal to create the PR, approver is {approver}")
-        self.github_data.pr_approver = approver
+        self.github_data.pr_creator = approver
 
     @workflow.signal
-    async def deploy(self, environment: str, approver: str):
+    async def deploy(self, environment: str):
         """Signal to deploy to a specific environment."""
-        workflow.logger.warning(f"Got signal to deploy to {environment}, approver is {approver}")
+        workflow.logger.warning(f"Got signal to deploy to {environment}.")
         for env in self.deployment_environments:
             if env.name == environment:
                 env.status = "approved"
+               # env.approver = approver
                 break
         else:
             workflow.logger.error(f"Environment {environment} not found in deployment environments.")
+
+    @workflow.query
+    def get_deployment_environments(self) -> any:
+        """Query handler to retrieve the list of prompts."""
+        return self.deployment_environments
 
 # Define the activity interfaces
 @activity.defn

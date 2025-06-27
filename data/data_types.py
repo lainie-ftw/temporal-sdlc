@@ -14,10 +14,11 @@ class DeploymentEnvironment:
     name: str
     endpoint: str
     deploy_script: str
-    status: str
+    status: str 
+    approver: str = ""
 
 @dataclass
 class GitHubData:
     repo_link: str
     pr_link: str
-    pr_approver: str
+    pr_creator: str
