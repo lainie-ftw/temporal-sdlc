@@ -1,0 +1,18 @@
+[tool.poetry]
+package-mode = false
+name = "temporal-sdlc"
+version = "0.1.0"
+description = ""
+authors = ["Laine Smith <lainecaseysmith@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.12"
+temporalio = "^1.13.0"
+jira = "^3.8.0"
+pygithub = "^2.6.1"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
