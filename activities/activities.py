@@ -125,7 +125,7 @@ class Activities:
             # Construct the SSH command to execute multiple commands on the remote server
             ssh_command = (
                 f"sshpass -p '{ssh_pw}' ssh {ssh_user}@{ssh_ip} "
-                f"\"cd fancy-app && git pull && "
+                f"\"cd fancy-app && git pull && chmod +x deploy.sh &&"
                 f"export HISTIGNORE='*sudo -S*' && "
                 f"echo '{ssh_pw}' | sudo -S ./deploy.sh '{env_name}'\""
             )
