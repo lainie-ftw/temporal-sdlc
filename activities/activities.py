@@ -107,10 +107,46 @@ class Activities:
     
     @activity.defn
     async def deploy_to_environment(self, deployment_environment: DeploymentEnvironment) -> DeploymentEnvironment:
-        import subprocess
-
-        command = f'chmod +x deploy_helper.sh; ./deploy_helper.sh "{deployment_environment.name}"'
-        result = subprocess.run(command, shell=True, check=True, capture_output=True, text=True)
+        print(f'Beginning deploy to {deployment_environment.name} environment.')
+        await self.run_ssh_commands(deployment_environment.name)
         deployment_environment.status = 'deployed'
-        print(f'Deployed to {deployment_environment.name} environment: {result.stdout}')
+        
+        print(f'Deployed to {deployment_environment.name} environment.')
+
         return deployment_environment
+    
+
+    async def run_ssh_commands(self, env_name: str) -> None:
+        import subprocess
+        ssh_pw = os.environ.get('SSH_PW')
+        ssh_user = os.environ.get('SSH_USER')
+        ssh_ip = os.environ.get('SSH_IP')
+        try:
+            # Construct the SSH command to execute multiple commands on the remote server
+            ssh_command = (
+                f"sshpass -p '{ssh_pw}' ssh {ssh_user}@{ssh_ip} "
+                f"\"cd fancy-app && git pull && "
+                f"export HISTIGNORE='*sudo -S*' && "
+                f"echo '{ssh_pw}' | sudo -S ./deploy.sh '{env_name}'\""
+            )
+
+            # Run the SSH command
+            print(f"Executing ssh command.")
+            result = subprocess.run(
+                ssh_command,
+                timeout=15,
+                shell=True,  # Required for command chaining with &&
+                check=True,  # Raises an error if the command fails
+                capture_output=True,  # Capture stdout and stderr
+                text=True  # Return output as strings instead of bytes
+            )
+            
+            if result.stderr:
+                print("Errors (if any):")
+                print(result.stderr)
+
+        except subprocess.CalledProcessError as e:
+            print(f"Error executing command: {e}")
+            print(f"Error output: {e.stderr}")
+        except Exception as e:
+            print(f"Unexpected error: {e}")

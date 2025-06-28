@@ -1,11 +1,12 @@
 from datetime import timedelta
-import os
 from temporalio import workflow
 
 with workflow.unsafe.imports_passed_through():
     from data.data_types import FeatureDetails, DeploymentEnvironment, GitHubData
     from activities.activities import Activities
+    import os
 
+ENV_LIST = os.environ.get('ENV_LIST', 'dev').split(',')
 #TODO: custom search attribute for Jira ID - make tool getWorkflowFromJiraID
 # Define the workflow interface
 # This workflow demonstrates a simple SDLC process using Temporal workflows and activities.
@@ -35,8 +36,7 @@ class SDLCWorkflow:
         workflow.logger.info(f"Starting SDLC workflow for feature: {feature_details}")
 
         # Initialize deployment environments
-        env_list = os.environ.get('ENV_LIST', 'dev').split(',')
-        for env_name in env_list:
+        for env_name in ENV_LIST:
             env = DeploymentEnvironment(
                 name=env_name.strip(),
                 endpoint=f"http://{env_name.strip()}.example.com",
@@ -60,10 +60,9 @@ class SDLCWorkflow:
             # Wait for approval to deploy to the environment
             await workflow.wait_condition(
                 lambda: env.status == "approved",
-                timeout=timedelta(days=5),  # Wait up to 5 days for approval
             )
             # Execute the deployment activity
-            await workflow.execute_activity(Activities.deploy_to_environment, env, start_to_close_timeout=timedelta(seconds=30))
+            env = await workflow.execute_activity(Activities.deploy_to_environment, env, start_to_close_timeout=timedelta(seconds=300))
 
         workflow.logger.info("SDLC workflow completed successfully.")                          
 

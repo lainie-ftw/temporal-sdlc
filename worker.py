@@ -17,9 +17,7 @@ async def main():
             activity_list.create_jira_issue,
             activity_list.create_github_branch,
             activity_list.create_github_pr,
-            activity_list.deploy_to_test_env,
-            activity_list.deploy_to_preprod_env,
-            activity_list.deploy_to_prod_env,
+            activity_list.deploy_to_environment,
         ],
     )
 
