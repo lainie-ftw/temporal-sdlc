@@ -1,11 +1,12 @@
 from datetime import timedelta
+import os
 from temporalio import workflow
 
 with workflow.unsafe.imports_passed_through():
     from data.data_types import FeatureDetails, DeploymentEnvironment, GitHubData
     from activities.activities import Activities
 
-
+#TODO: custom search attribute for Jira ID - make tool getWorkflowFromJiraID
 # Define the workflow interface
 # This workflow demonstrates a simple SDLC process using Temporal workflows and activities.
 @workflow.defn
@@ -16,64 +17,62 @@ class SDLCWorkflow:
         self.feature_details = FeatureDetails(
             jira_id="",
             jira_link="",
-            feature_branch_name="",
-            description=""
+            description="",
+            github_data = GitHubData(
+                repo_link="",
+                branch_name="",
+                pr_link="",
+                pr_creator=""
+            )
         )
 
         # Store deployment environment information
-        self.deployment_environments = [
-            DeploymentEnvironment(name="test", endpoint="http://test.example.com", deploy_script="deploy_to_test.sh", status="pending"),
-            DeploymentEnvironment(name="preprod", endpoint="http://preprod.example.com", deploy_script="deploy_to_preprod.sh", status="pending"),
-            DeploymentEnvironment(name="prod", endpoint="http://prod.example.com", deploy_script="deploy_to_prod.sh", status="pending"),
-        ]
-
-        self.github_data = GitHubData(
-            repo_link="",
-            pr_link="",
-            pr_creator=""
-        )  # Store GitHub repository information
+        self.deployment_environments = []
 
     @workflow.run
     async def run(self, feature_details: str) -> None:
         self.feature_details.description = feature_details
         workflow.logger.info(f"Starting SDLC workflow for feature: {feature_details}")
 
-        await workflow.execute_activity(Activities.create_jira_issue, self.feature_details, start_to_close_timeout=timedelta(seconds=30))
-        await workflow.execute_activity(Activities.create_github_branch, self.github_data, start_to_close_timeout=timedelta(seconds=30))
+        # Initialize deployment environments
+        env_list = os.environ.get('ENV_LIST', 'dev').split(',')
+        for env_name in env_list:
+            env = DeploymentEnvironment(
+                name=env_name.strip(),
+                endpoint=f"http://{env_name.strip()}.example.com",
+                status="pending"
+            )
+            self.deployment_environments.append(env)
+
+        self.feature_details = await workflow.execute_activity(Activities.create_jira_issue, self.feature_details, start_to_close_timeout=timedelta(seconds=30))
+        self.feature_details.github_data.branch_name = f"feature/{self.feature_details.jira_id.lower()}"
+        self.feature_details.github_data = await workflow.execute_activity(Activities.create_github_branch, self.feature_details.github_data, start_to_close_timeout=timedelta(seconds=30))
 
         # Wait for a signal to create the PR
         await workflow.wait_condition(
-            lambda: self.github_data.pr_creator != "",
-            timeout=timedelta(days=5),
+            lambda: self.feature_details.github_data.pr_creator != "",
         )
-        await workflow.execute_activity(Activities.create_github_pr, feature_details, start_to_close_timeout=timedelta(seconds=30))
+        self.feature_details = await workflow.execute_activity(Activities.create_github_pr, self.feature_details, start_to_close_timeout=timedelta(seconds=30))
 
-        # Wait for approval to deploy to Test
-        await workflow.wait_condition(
-            lambda: any(env.status == "approved" for env in self.deployment_environments if env.name == "test"),
-            timeout=timedelta(days=5),
-        )
-        await workflow.execute_activity(Activities.deploy_to_test_env, feature_details, start_to_close_timeout=timedelta(seconds=30))
+        #For each deployment environment, wait for approval and then deploy
+        for env in self.deployment_environments:
+            workflow.logger.info(f"Waiting for approval to deploy to {env.name} environment.")
+            # Wait for approval to deploy to the environment
+            await workflow.wait_condition(
+                lambda: env.status == "approved",
+                timeout=timedelta(days=5),  # Wait up to 5 days for approval
+            )
+            # Execute the deployment activity
+            await workflow.execute_activity(Activities.deploy_to_environment, env, start_to_close_timeout=timedelta(seconds=30))
 
-        # Wait for approval to deploy to Preprod
-        await workflow.wait_condition(
-            lambda: any(env.status == "approved" for env in self.deployment_environments if env.name == "preprod"),
-            timeout=timedelta(days=5),
-        )
-        await workflow.execute_activity(Activities.deploy_to_preprod_env, feature_details, start_to_close_timeout=timedelta(seconds=30))
+        workflow.logger.info("SDLC workflow completed successfully.")                          
 
-        # Wait for approval to deploy to Prod
-        await workflow.wait_condition(
-            lambda: any(env.status == "approved" for env in self.deployment_environments if env.name == "prod"),
-            timeout=timedelta(days=5),
-        )
-        await workflow.execute_activity(Activities.deploy_to_prod_env, feature_details, start_to_close_timeout=timedelta(seconds=30))
-
+    # ----- Signals -----
     @workflow.signal
     async def create_PR(self, approver: str):
         """Signal to receive a prompt from the user."""
         workflow.logger.warning(f"Got signal to create the PR, approver is {approver}")
-        self.github_data.pr_creator = approver
+        self.feature_details.github_data.pr_creator = approver
 
     @workflow.signal
     async def deploy(self, environment: str):
@@ -87,7 +86,13 @@ class SDLCWorkflow:
         else:
             workflow.logger.error(f"Environment {environment} not found in deployment environments.")
 
+    # ----- Queries -----
     @workflow.query
     def get_deployment_environments(self) -> any:
-        """Query handler to retrieve the list of prompts."""
+        """Query handler to retrieve deployment environment information."""
         return self.deployment_environments
+    
+    @workflow.query
+    def get_feature_details(self) -> any:
+        """Query handler to retrieve feature details."""
+        return self.feature_details
