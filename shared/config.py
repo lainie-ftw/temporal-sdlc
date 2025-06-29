@@ -1,14 +1,15 @@
 import os
 
 #from dotenv import load_dotenv
+from dotenv import load_dotenv
 from temporalio.client import Client
 
-#load_dotenv(override=True)
+load_dotenv(override=True)
 
 # Temporal connection settings
-TEMPORAL_ADDRESS = os.getenv("TEMPORAL_ADDRESS", "localhost:7233")
-TEMPORAL_NAMESPACE = os.getenv("TEMPORAL_NAMESPACE", "default")
-TEMPORAL_TASK_QUEUE = os.getenv("TEMPORAL_TASK_QUEUE", "default-queue")
+TEMPORAL_ADDRESS = os.environ.get("TEMPORAL_ADDRESS", "localhost:7233")
+TEMPORAL_NAMESPACE = os.environ.get("TEMPORAL_NAMESPACE", "default")
+TEMPORAL_TASK_QUEUE = os.environ.get("TEMPORAL_TASK_QUEUE", "default-queue")
 
 async def get_temporal_client() -> Client:
     """

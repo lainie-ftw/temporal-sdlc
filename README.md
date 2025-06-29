@@ -14,3 +14,31 @@ docker compose up [env]
 - make this MCP'd
 -- add to AI agent demo
 -- add to Cline
+
+# Setup
+temporal operator search-attribute create --name JiraID --type Text --namespace sdlc --env lab
+
+To start MCP:
+{
+  "mcpServers": {
+    "sdlc_workflow": {
+      "disabled": false,
+      "timeout": 60,
+      "type": "stdio",
+      "command": "wsl.exe",
+      "args": [
+        "--cd",
+        "/home/laine/workspaces/temporal-sdlc",
+        "--",
+        "poetry",
+        "run",
+        "python",
+        "mcp_server.py"
+      ]
+    }
+}
+
+To run:
+start mcp_server.py
+start a worker
+either trigger from Cline or run run_workflow.py

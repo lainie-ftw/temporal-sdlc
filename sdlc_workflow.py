@@ -1,4 +1,5 @@
 from datetime import timedelta
+from typing import List
 from temporalio import workflow
 
 with workflow.unsafe.imports_passed_through():
@@ -7,8 +8,7 @@ with workflow.unsafe.imports_passed_through():
     import os
 
 ENV_LIST = os.environ.get('ENV_LIST', 'dev').split(',')
-#TODO: custom search attribute for Jira ID - make tool getWorkflowFromJiraID
-# Define the workflow interface
+
 # This workflow demonstrates a simple SDLC process using Temporal workflows and activities.
 @workflow.defn
 class SDLCWorkflow:
@@ -45,6 +45,8 @@ class SDLCWorkflow:
             self.deployment_environments.append(env)
 
         self.feature_details = await workflow.execute_activity(Activities.create_jira_issue, self.feature_details, start_to_close_timeout=timedelta(seconds=30))
+        workflow.upsert_search_attributes({"JiraID": [f"{self.feature_details.jira_id.lower()}"]})
+        
         self.feature_details.github_data.branch_name = f"feature/{self.feature_details.jira_id.lower()}"
         self.feature_details.github_data = await workflow.execute_activity(Activities.create_github_branch, self.feature_details.github_data, start_to_close_timeout=timedelta(seconds=30))
 
@@ -87,11 +89,11 @@ class SDLCWorkflow:
 
     # ----- Queries -----
     @workflow.query
-    def get_deployment_environments(self) -> any:
+    def get_deployment_environments(self) -> List[DeploymentEnvironment]:
         """Query handler to retrieve deployment environment information."""
         return self.deployment_environments
     
     @workflow.query
-    def get_feature_details(self) -> any:
+    def get_feature_details(self) -> FeatureDetails:
         """Query handler to retrieve feature details."""
         return self.feature_details

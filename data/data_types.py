@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 @dataclass
 class DeploymentEnvironment:
@@ -19,4 +19,4 @@ class FeatureDetails:
     jira_id: str
     jira_link: str
     description: str
-    github_data: GitHubData = None
+    github_data: GitHubData = field(default_factory=GitHubData)
