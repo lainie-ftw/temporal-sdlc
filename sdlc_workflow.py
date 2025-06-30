@@ -47,7 +47,8 @@ class SDLCWorkflow:
             self.deployment_environments.append(env)
 
         self.feature_details = await workflow.execute_activity(Activities.create_jira_issue, self.feature_details, start_to_close_timeout=timedelta(seconds=30))
-        workflow.upsert_search_attributes({"JiraID": [f"{self.feature_details.jira_id.lower()}"]})
+
+        workflow.upsert_search_attributes({"JiraIDFull": [f"{self.feature_details.jira_id.lower()}"]})
         self.status = f"Jira issue created: {self.feature_details.jira_id}."
         
         self.feature_details.github_data.branch_name = f"feature/{self.feature_details.jira_id.lower()}"

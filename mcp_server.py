@@ -32,7 +32,7 @@ async def create_pr(jira_id: str) -> str:
     client = await get_temporal_client()
     #get workflow ID with custom search attribute JiraID
     jira_id_lower = jira_id.lower()
-    async for workflow in client.list_workflows(query=f'JiraID="{jira_id_lower}"'):
+    async for workflow in client.list_workflows(query=f'JiraIDFull="{jira_id_lower}"'):
         workflow_id = workflow.id
     
     handle = client.get_workflow_handle(workflow_id=workflow_id)
@@ -49,7 +49,7 @@ async def deploy(jira_id: str, env: str) -> str:
     """Signal rejection for the invoice workflow."""
     client = await get_temporal_client()
     jira_id_lower = jira_id.lower()
-    async for workflow in client.list_workflows(query=f'JiraID="{jira_id_lower}"'):
+    async for workflow in client.list_workflows(query=f'JiraIDFull="{jira_id_lower}"'):
         workflow_id = workflow.id
     handle = client.get_workflow_handle(workflow_id=workflow_id)
     await handle.signal("deploy_to_environment", env)
@@ -63,7 +63,7 @@ async def status(jira_id: str) -> str:
     client = await get_temporal_client()
 
     jira_id_lower = jira_id.lower()
-    async for workflow in client.list_workflows(query=f'JiraID="{jira_id_lower}"'):
+    async for workflow in client.list_workflows(query=f'JiraIDFull="{jira_id_lower}"'):
         workflow_id = workflow.id
     
     handle = client.get_workflow_handle(workflow_id=workflow_id)
