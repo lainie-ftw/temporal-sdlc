@@ -30,6 +30,8 @@ class SDLCWorkflow:
         # Store deployment environment information
         self.deployment_environments = []
 
+        self.status = "new"  # Human-friendly workflow status
+
     @workflow.run
     async def run(self, feature_details: str) -> None:
         self.feature_details.description = feature_details
@@ -39,22 +41,25 @@ class SDLCWorkflow:
         for env_name in ENV_LIST:
             env = DeploymentEnvironment(
                 name=env_name.strip(),
-                endpoint=f"http://{env_name.strip()}.example.com",
+                endpoint=f"http://{env_name.strip()}.fancy-app.lab",
                 status="pending"
             )
             self.deployment_environments.append(env)
 
         self.feature_details = await workflow.execute_activity(Activities.create_jira_issue, self.feature_details, start_to_close_timeout=timedelta(seconds=30))
         workflow.upsert_search_attributes({"JiraID": [f"{self.feature_details.jira_id.lower()}"]})
+        self.status = f"Jira issue created: {self.feature_details.jira_id}."
         
         self.feature_details.github_data.branch_name = f"feature/{self.feature_details.jira_id.lower()}"
         self.feature_details.github_data = await workflow.execute_activity(Activities.create_github_branch, self.feature_details.github_data, start_to_close_timeout=timedelta(seconds=30))
+        self.status = f"GitHub branch created: {self.feature_details.github_data.branch_name}."
 
         # Wait for a signal to create the PR
         await workflow.wait_condition(
             lambda: self.feature_details.github_data.pr_creator != "",
         )
         self.feature_details = await workflow.execute_activity(Activities.create_github_pr, self.feature_details, start_to_close_timeout=timedelta(seconds=30))
+        self.status = f"GitHub PR created: {self.feature_details.github_data.pr_link}."
 
         #For each deployment environment, wait for approval and then deploy
         for env in self.deployment_environments:
@@ -65,8 +70,10 @@ class SDLCWorkflow:
             )
             # Execute the deployment activity
             env = await workflow.execute_activity(Activities.deploy_to_environment, env, start_to_close_timeout=timedelta(seconds=300))
+            self.status = f"Deployed to {env.name} environment."
 
-        workflow.logger.info("SDLC workflow completed successfully.")                          
+        workflow.logger.info("SDLC workflow completed successfully.") 
+        self.status = "Complete!"                         
 
     # ----- Signals -----
     @workflow.signal
@@ -97,3 +104,8 @@ class SDLCWorkflow:
     def get_feature_details(self) -> FeatureDetails:
         """Query handler to retrieve feature details."""
         return self.feature_details
+    
+    @workflow.query
+    def get_status(self) -> str:
+        """Query handler to retrieve the current status of the workflow."""
+        return self.status
