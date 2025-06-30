@@ -19,7 +19,12 @@ async def start(feature_description: str) -> Dict[str, str]:
         id=f"sdlc-{uuid.uuid4()}",
         task_queue=TEMPORAL_TASK_QUEUE,
     )
-    return {"workflow_id": handle.id, "run_id": handle.result_run_id}
+    
+    # Return Jira URL and GitHub branch URL
+    feature_details = await handle.query(SDLCWorkflow.get_feature_details)
+    jira_url = feature_details.jira_link
+    github_branch_url = feature_details.github_data.repo_link
+    return {"workflow_id": handle.id, "jira_url": jira_url, "github_branch_url": github_branch_url}
 
 
 @mcp.tool()
@@ -27,11 +32,15 @@ async def create_pr(jira_id: str) -> str:
     client = await get_temporal_client()
     #get workflow ID with custom search attribute JiraID
     jira_id_lower = jira_id.lower()
-    async for workflow in client.list_workflows(query=f'JiraID="{jira_id_lower}"'):
+    async for workflow in client.list_workflows(query=f'JiraIDFull="{jira_id_lower}"'):
         workflow_id = workflow.id
     
     handle = client.get_workflow_handle(workflow_id=workflow_id)
     await handle.signal("create_PR", "mcp_user")
+
+    #feature_details = await handle.query(SDLCWorkflow.get_feature_details)
+    #pr_link = f"https://wwww.github.com/{feature_details.github_data.repo_link}"
+    #TODO: return PR link
     return "PR created."
 
 
@@ -40,10 +49,11 @@ async def deploy(jira_id: str, env: str) -> str:
     """Signal rejection for the invoice workflow."""
     client = await get_temporal_client()
     jira_id_lower = jira_id.lower()
-    async for workflow in client.list_workflows(query=f'JiraID="{jira_id_lower}"'):
+    async for workflow in client.list_workflows(query=f'JiraIDFull="{jira_id_lower}"'):
         workflow_id = workflow.id
     handle = client.get_workflow_handle(workflow_id=workflow_id)
     await handle.signal("deploy_to_environment", env)
+    #TODO: return something re: deployments
     return f"Deployed to {env}."
 
 
@@ -53,16 +63,13 @@ async def status(jira_id: str) -> str:
     client = await get_temporal_client()
 
     jira_id_lower = jira_id.lower()
-    async for workflow in client.list_workflows(query=f'JiraID="{jira_id_lower}"'):
+    async for workflow in client.list_workflows(query=f'JiraIDFull="{jira_id_lower}"'):
         workflow_id = workflow.id
     
     handle = client.get_workflow_handle(workflow_id=workflow_id)
+    status = await handle.query(SDLCWorkflow.get_status)
 
-    desc = await handle.describe()
-    feature_details = await handle.query(SDLCWorkflow.get_feature_details)
-
-    return f"Feature {feature_details.jira_id} is totally a thing. " \
-           f"Workflow status: {desc.status.name}"
+    return f"Feature {jira_id} currently has a status of {status}."
 
 if __name__ == "__main__":
     mcp.run(transport="stdio")

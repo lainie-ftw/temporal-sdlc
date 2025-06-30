@@ -40,7 +40,7 @@ Included in this repository is a mcp_server.py that will run locally with stdio.
 The MCP server implementation relies on a [custom search attribute](https://docs.temporal.io/search-attribute#custom-search-attribute) called JiraID, which can be set up from the UI if you're using Temporal Cloud and via command line if you're running it locally. This command assumes you're using a namespace called sdlc:
 
 ```bash
-temporal operator search-attribute create --name JiraID --type Text --namespace sdlc
+temporal operator search-attribute create --name JiraIDFull --type Keyword --namespace sdlc
 ```
 
 If you don't want to use the MCP server, you can safely comment out the line in `sdlc_workflow.py` that adds the attribute to the workflow.
@@ -50,7 +50,10 @@ If you don't want to use the MCP server, you can safely comment out the line in 
 ## Environment Variables ⚙️
 You can see the environment variables used in `.env.example`. Make a copy of this file to `.env` and complete with your information.
 
-This project uses Poetry as its package manager. 
+## Setup and Run
+**Python Setup**
+
+This project uses Poetry as its package manager. The instructions below will set up a virtual env and install the required dependencies.
 
 ```bash
 # Create the venv in a folder called `.venv`
@@ -62,21 +65,25 @@ source .venv/bin/activate
 # Install the requirements
 poetry install
 ```
+---
 
-2. **Start Temporal (locally or via Temporal Cloud)**
+**Start Temporal (locally or via Temporal Cloud)**
 
 ```bash
 temporal server start-dev
 ```
+---
 
-3. **Run the worker**
+**Run the worker**
 
 ```bash
 poetry run python worker.py
 ```
+---
 
-4. **Trigger the workflow**
-If you've set up the MCP server from an MCP host, you can trigger the workflow by asking it to create a new SDLC workflow with feature description "[description here]"
+**Start the workflow!**
+
+If you've set up the MCP server from an MCP host (Cline, Claude, Goose, etc), you can trigger the workflow by asking to create a new SDLC workflow with feature description "[description here]"
 
 You can also start the workflow by running `run_workflow.py` and changing the `start_msg` 
 
