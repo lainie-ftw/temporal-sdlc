@@ -49,18 +49,18 @@ class SDLCWorkflow:
         self.feature_details = await workflow.execute_activity(Activities.create_jira_issue, self.feature_details, start_to_close_timeout=timedelta(seconds=30))
 
         workflow.upsert_search_attributes({"JiraIDFull": [f"{self.feature_details.jira_id.lower()}"]})
-        self.status = f"Jira issue created: {self.feature_details.jira_id}."
+        self.status = f"Jira issue created: {self.feature_details.jira_id}"
         
         self.feature_details.github_data.branch_name = f"feature/{self.feature_details.jira_id.lower()}"
         self.feature_details.github_data = await workflow.execute_activity(Activities.create_github_branch, self.feature_details.github_data, start_to_close_timeout=timedelta(seconds=30))
-        self.status = f"GitHub branch created: {self.feature_details.github_data.branch_name}."
+        self.status = f"GitHub branch created: {self.feature_details.github_data.branch_name}"
 
         # Wait for a signal to create the PR
         await workflow.wait_condition(
             lambda: self.feature_details.github_data.pr_creator != "",
         )
         self.feature_details = await workflow.execute_activity(Activities.create_github_pr, self.feature_details, start_to_close_timeout=timedelta(seconds=30))
-        self.status = f"GitHub PR created: {self.feature_details.github_data.pr_link}."
+        self.status = f"GitHub PR created: {self.feature_details.github_data.pr_link}"
 
         #For each deployment environment, wait for approval and then deploy
         for env in self.deployment_environments:
@@ -71,7 +71,7 @@ class SDLCWorkflow:
             )
             # Execute the deployment activity
             env = await workflow.execute_activity(Activities.deploy_to_environment, env, start_to_close_timeout=timedelta(seconds=300))
-            self.status = f"Deployed to {env.name} environment."
+            self.status = f"Deployed to {env.name} environment"
 
         workflow.logger.info("SDLC workflow completed successfully.") 
         self.status = "Complete!"                         

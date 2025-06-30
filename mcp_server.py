@@ -10,7 +10,7 @@ from sdlc_workflow import SDLCWorkflow
 mcp = FastMCP(name="sdlc_workflow")
 
 @mcp.tool()
-async def start(feature_description: str) -> Dict[str, str, str]:
+async def start(feature_description: str) -> Dict[str, str]:
     """Start the SDLC Workflow with a feature description."""
     client = await get_temporal_client()
     handle = await client.start_workflow(
