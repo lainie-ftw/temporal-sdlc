@@ -1,3 +1,4 @@
+from asyncio import sleep
 import uuid
 from typing import Dict
 
@@ -19,12 +20,8 @@ async def start(feature_description: str) -> Dict[str, str]:
         id=f"sdlc-{uuid.uuid4()}",
         task_queue=TEMPORAL_TASK_QUEUE,
     )
-    
-    # Return Jira URL and GitHub branch URL
-    feature_details = await handle.query(SDLCWorkflow.get_feature_details)
-    jira_url = feature_details.jira_link
-    github_branch_url = feature_details.github_data.repo_link
-    return {"workflow_id": handle.id, "jira_url": jira_url, "github_branch_url": github_branch_url}
+
+    return {"workflow_id": handle.id}
 
 
 @mcp.tool()
@@ -38,9 +35,6 @@ async def create_pr(jira_id: str) -> str:
     handle = client.get_workflow_handle(workflow_id=workflow_id)
     await handle.signal("create_PR", "mcp_user")
 
-    #feature_details = await handle.query(SDLCWorkflow.get_feature_details)
-    #pr_link = f"https://wwww.github.com/{feature_details.github_data.repo_link}"
-    #TODO: return PR link
     return "PR created."
 
 
@@ -52,7 +46,7 @@ async def deploy(jira_id: str, env: str) -> str:
     async for workflow in client.list_workflows(query=f'JiraIDFull="{jira_id_lower}"'):
         workflow_id = workflow.id
     handle = client.get_workflow_handle(workflow_id=workflow_id)
-    await handle.signal("deploy_to_environment", env)
+    await handle.signal("deploy", env)
     #TODO: return something re: deployments
     return f"Deployed to {env}."
 
