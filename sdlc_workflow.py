@@ -41,9 +41,11 @@ class SDLCWorkflow:
         for env_name in ENV_LIST:
             env = DeploymentEnvironment(
                 name=env_name.strip(),
-                endpoint=f"http://{env_name.strip()}.fancy-app.lab",
+                endpoint=f"http://fancy-app-{env_name.strip()}.lab",
                 status="pending"
             )
+            if env_name.strip() == "prod":
+                env.endpoint = "http://fancy-app.lab"  # Production endpoint
             self.deployment_environments.append(env)
 
         self.feature_details = await workflow.execute_activity(Activities.create_jira_issue, self.feature_details, start_to_close_timeout=timedelta(seconds=30))
